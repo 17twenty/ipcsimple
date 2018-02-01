@@ -7,8 +7,9 @@ This is a simple IPC used to move development forward when you can't be arsed wi
 ### Producer
 
 ```golang
-    // The brokers are all the endpoints we want to post to
+// The brokers are all the endpoints we want to post to
 producer := ipcsimple.NewProducer([]string{"http://localhost:9090/ipcsimple"})
+...
 err = producer.SendMessage(&ipcsimple.ProducerMessage{
     Topic: "testA",
     Value: ipcsimple.ByteEncoder(tempAsBytes),
@@ -42,5 +43,6 @@ for msg := range consumerA.Messages() {
 
 * Server timeouts could be a problem
 * Doesn't fail that gracefully
+* Close doesn't do much
 * Could take a logger as an input rather than stdoutting it
 * Doesn't ever exit inner go routine
