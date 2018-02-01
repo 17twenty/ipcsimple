@@ -31,9 +31,3 @@ func (b ByteEncoder) Encode() ([]byte, error) {
 func (b ByteEncoder) Length() int {
 	return len(b)
 }
-
-type ProducerMessage struct {
-	Topic string
-	Key   Encoder
-	Value Encoder
-}

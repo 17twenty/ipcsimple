@@ -1,74 +1,85 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
-	ipcsimple "github.com/17twenty/ipc-simple"
-	"github.com/Shopify/sarama"
+	"github.com/17twenty/ipcsimple"
 )
 
-type check struct {
-	partition int32
-	offset    int64
-	message   string
+type DemoStruct struct {
+	Hello string `json:"hello`
+	Count int    `json:"count"`
 }
 
-const (
-	topic         = "test_topic"
-	messageCount  = 15
-	clientID      = "test_client"
-	numPartitions = int32(8)
-	brokerAddr    = "127.0.0.1:9092"
-	raftAddr      = "127.0.0.1:9093"
-	serfAddr      = "127.0.0.1:9094"
-	httpAddr      = "127.0.0.1:9095"
-	logDir        = "logdir"
-	brokerID      = 0
-)
-
 func main() {
-	broker, err := ipcsimple.NewRESTBroker(8080)
 
-	brokers := []string{brokerAddr}
-	producer := broker.NewProducer(brokers)
-
-	pmap := make(map[int32][]check)
-
-	for i := 0; i < messageCount; i++ {
-		message := fmt.Sprintf("Hello from Jocko #%d!", i)
-		partition, offset, err := producer.SendMessage(&ipcsimple.ProducerMessage{
-			Topic: topic,
-			Value: sarama.StringEncoder(message),
-		})
-		if err != nil {
-			panic(err)
-		}
-		pmap[partition] = append(pmap[partition], check{
-			partition: partition,
-			offset:    offset,
-			message:   message,
-		})
+	temp := DemoStruct{
+		Hello: "Heya",
+		Count: 5,
 	}
-	if err = producer.Close(); err != nil {
-		panic(err)
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	tempAsBytes, err := json.Marshal(temp)
+	if err != nil {
+		fmt.Println("error:", err)
 	}
 
 	var totalChecked int
-	for partitionID := range pmap {
-		checked := 0
-		consumer := broker.NewConsumer(brokers)
 
-		for msg := range consumer.Messages() {
-			if string(msg.Value) != check.message {
-				log.Fatalln("msg values not equal")
+	consumerA := ipcsimple.NewConsumer(9090)
+
+	producer := ipcsimple.NewProducer([]string{"http://localhost:9090/ipcsimple"})
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			err = producer.SendMessage(&ipcsimple.ProducerMessage{
+				Topic: "testA",
+				Value: ipcsimple.ByteEncoder(tempAsBytes),
+			})
+			if err != nil {
+				log.Println("About to panic()", err)
+				time.Sleep(time.Second * 20)
+				panic(err)
 			}
-			// if msg.Offset != check.offset {
-			// 	logger.Fatal("msg offsets not equal", log.Int32("partition", msg.Partition), log.Int64("offset", msg.Offset))
-			// }
+			err = producer.SendMessage(&ipcsimple.ProducerMessage{
+				Topic: "testB",
+				Value: ipcsimple.ByteEncoder(tempAsBytes),
+			})
+			if err != nil {
+				log.Println("About to panic()", err)
+				time.Sleep(time.Second * 20)
+				panic(err)
+			}
+			time.Sleep(time.Millisecond * 500)
+		}
+	}()
+	log.Println("Closing...")
+	if err := producer.Close(); err != nil {
+		log.Println("About to panic()", err)
+		time.Sleep(time.Second * 20)
+		panic(err)
+	}
+
+	log.Println("Reading Messages...")
+	for msg := range consumerA.Messages() {
+		switch msg.Topic {
+		case "testA":
+			var data DemoStruct
 			log.Println(fmt.Sprintf("%v", string(msg.Value)))
+			err := json.Unmarshal([]byte(msg.Value), &data)
+			log.Println(err, fmt.Sprintf("%#+v", data))
 			log.Println("msg is ok")
+
+		case "testB":
+			log.Println("Got RAW testB message", msg.Value)
+		default:
+			log.Println("ERR: Unknown topic", string(msg.Topic))
 		}
 	}
+
 	fmt.Printf("producer and consumer worked! %d messages ok\n", totalChecked)
 }
