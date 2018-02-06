@@ -50,7 +50,8 @@ func (p *RESTProducer) SendMessage(msg *ProducerMessage) error {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			panic(err)
+			log.Println(err)
+			continue
 		}
 		defer resp.Body.Close()
 
