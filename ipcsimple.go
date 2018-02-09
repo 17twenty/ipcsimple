@@ -110,6 +110,7 @@ func NewConsumer(port int) *RESTConsumer {
 		http.Handle("/", b.muxer)
 		log.Println("Serving on", fmt.Sprintf(":%d", port))
 		http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+		panic("Listen failed!")
 	}(port)
 
 	// Give the consumer time to start listening...
